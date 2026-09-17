@@ -1,0 +1,9 @@
+# Solo CI. DuckDB en memoria. Sin Snowflake (ese adaptador no se instala en el parse).
+
+amva_pipeline:
+  target: ci
+  outputs:
+    ci:
+      type: duckdb
+      path: ":memory:"
+      threads: 2

@@ -65,7 +65,7 @@ jobs:
       - name: Instalar dbt-duckdb
         run: pip install "dbt-core>=1.9.0,<2.0.0" "dbt-duckdb>=1.9.0,<2.0.0"
       - name: Parse del proyecto
-        run: dbt parse --profiles-dir ../ci --target ci
+        run: dbt parse --profiles-dir "${{ github.workspace }}/ci" --target ci
 
   python_scripts:
     name: scripts Python + DAG

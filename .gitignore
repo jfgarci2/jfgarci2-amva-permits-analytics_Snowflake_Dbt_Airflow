@@ -1,7 +1,8 @@
 .env
 airflow/.env
-profiles.yml
+/profiles.yml
 !profiles.yml.example
+!ci/profiles.yml
 .cursor/
 .user.yml
 Geodatabase/
