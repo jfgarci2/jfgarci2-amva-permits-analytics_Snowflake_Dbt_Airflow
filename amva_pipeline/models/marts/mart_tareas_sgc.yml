@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: mart_tareas_sgc
+    description: >
+      Gold delgado a grano tarea. Expone horas/días hábiles más el flag
+      contar_dias_habiles (réplica V2) y SGC nativo de DECIDE. Una fila por
+      tarea; no deduplica trámites. El mapa y los KPI por permiso viven en
+      mart_tramites_geo.
+    columns:
+      - name: tramite_id
+        description: "Identificador del trámite. Se repite porque hay varias tareas."
+        tests:
+          - not_null
+      - name: tarea_orden
+        description: Orden de la tarea en el flujo del trámite.
+        tests:
+          - not_null
+      - name: horas_habiles
+        description: Horas netas de la tarea (jornada 07:30–17:30, sin festivos ni fines de semana).
+      - name: dias_habiles
+        description: horas_habiles / 10.
+      - name: contar_dias_habiles
+        description: >
+          SI/NO. La tarea entra al KPI de tiempo del trámite desde Auto de Inicio
+          (o Actuación Jurídica) y, si ya hay fecha_decide, solo si inició y
+          terminó en o antes de esa fecha.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["SI", "NO"]
+      - name: estado_sgc
+        description: Área SGC que trae DECIDE (ESTADOSGC). No es SGC_Modificado_v7.
+      - name: agrupacion_sgc
+        description: Agrupación SGC de DECIDE (AGRUPACION).

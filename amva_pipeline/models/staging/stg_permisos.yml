@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: stg_permisos
+    description: >
+      Silver DECIDE (archivo completo). Grano tarea. Sin PII. Las horas hábiles
+      viven en int_horas_habiles (join a stg_dias_nolaborables), no aquí.
+    columns:
+      - name: tramite_id
+        tests:
+          - not_null
+      - name: tarea_orden
+        tests:
+          - not_null

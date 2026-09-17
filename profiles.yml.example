@@ -1,0 +1,50 @@
+# Plantilla de profiles.yml para el proyecto AMVA (dbt Core).
+#
+# El profiles.yml DE TRABAJO vive EN ESTA MISMA CARPETA del proyecto
+# (junto a PROMPT / amva_pipeline), NO solo en C:\Users\Usuario\.dbt\.
+#
+# Copia este archivo a profiles.yml en la raíz del repo (ya está gitignored).
+# NUNCA subas profiles.yml a Git. Este .example SÍ puede ir al repo:
+# no lleva contraseña, solo la llamada a env_var.
+#
+# Por qué aquí y no solo en ~/.dbt:
+#   dbt, por defecto, busca ~/.dbt/profiles.yml.
+#   También acepta --profiles-dir o la env DBT_PROFILES_DIR.
+#   Así todo el proyecto (SQL + perfil) queda en:
+#   D:\PROJECTS-ANALITYICS ENGINEER\AMVA PROJECTS\amva-environmental-permits- DBT- SNOWFLAKE-AIRFLOW
+#   Git ignora profiles.yml; el password sigue siendo env_var, no un secreto en GitHub.
+#
+# Correr dbt DESDE amva_pipeline, apuntando --profiles-dir a ESTA carpeta:
+#   dbt debug --target snowflake --profiles-dir "D:\PROJECTS-ANALITYICS ENGINEER\AMVA PROJECTS\amva-environmental-permits- DBT- SNOWFLAKE-AIRFLOW"
+#
+# Equivalente (PowerShell, sesión actual):
+#   $env:DBT_PROFILES_DIR = "D:\PROJECTS-ANALITYICS ENGINEER\AMVA PROJECTS\amva-environmental-permits- DBT- SNOWFLAKE-AIRFLOW"
+#   dbt debug --target snowflake
+#
+# Password: en PowerShell, ANTES de dbt debug:
+#   $env:SNOWFLAKE_PASSWORD = "su-password-aqui"
+# No pegues la contraseña en este archivo ni en el chat.
+
+amva_pipeline:
+  target: snowflake
+  outputs:
+    # Destino principal: Snowflake trial (entrevista / warehouse en la nube).
+    snowflake:
+      type: snowflake
+      # Account identifier = org + cuenta (lo confirmó CURRENT_ORGANIZATION_NAME || CURRENT_ACCOUNT_NAME).
+      account: NVSMAZV-BE58602
+      # CURRENT_USER. Snowsight puede mostrar el email; dbt usa este login + password nativa.
+      user: AMVA_DBT
+      role: SYSADMIN
+      warehouse: AMVA_WH
+      database: AMVA_ENV
+      schema: SILVER
+      threads: 4
+      client_session_keep_alive: False
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+
+    # Segundo destino: DuckDB local ($0, sin créditos). El trial caduca; este archivo no.
+    duckdb:
+      type: duckdb
+      path: "D:/PROJECTS-ANALITYICS ENGINEER/AMVA PROJECTS/amva-environmental-permits- DBT- SNOWFLAKE-AIRFLOW/data/processed/amva.duckdb"
+      threads: 4

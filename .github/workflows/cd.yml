@@ -1,0 +1,81 @@
+# =====================================================================
+#  CD — CONTINUOUS DEPLOYMENT
+# =====================================================================
+#  QUÉ ES CD, sin rodeos:
+#  "Cuando el código ya pasó CI y entra a main, una máquina lo PUBLICA.
+#   Nadie copia archivos a mano."
+#
+#  CI responde: "¿está bien?"   -> cada PR, sin Snowflake.
+#  CD responde: "publícalo"     -> solo main, el geoportal en GitHub Pages.
+#
+#  En catastro Medellín, CD también hacía dbt build en Databricks.
+#  Aquí NO: el warehouse es un trial XS. Gold lo construye Airflow en
+#  local (o un workflow_dispatch). Pages solo publica el HTML/JSON ya
+#  exportado — el navegador nunca habla con Snowflake.
+#
+#  EN: "CI answers 'is this correct'. CD answers 'ship it'. The geoportal
+#       goes to GitHub Pages. Airflow builds Gold on Snowflake; Actions
+#       do not wake the warehouse on every push."
+# =====================================================================
+
+name: CD — geoportal Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_snowflake:
+        description: "dbt build en Snowflake (enciende el warehouse; gasta créditos)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy_pages:
+    name: Publicar geoportal
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Armar el sitio
+        run: |
+          mkdir -p _site
+          cp -r dashboard/. _site/
+          test -f _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
+
+  dbt_build_snowflake:
+    name: dbt build Snowflake (manual)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_snowflake == 'true'
+    defaults:
+      run:
+        working-directory: amva_pipeline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Instalar dbt-snowflake
+        run: pip install "dbt-snowflake>=1.9.0,<2.0.0"
+      - name: dbt build
+        env:
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: dbt build --profiles-dir ../ci --target snowflake --select staging intermediate marts

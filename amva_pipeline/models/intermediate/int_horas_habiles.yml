@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: int_horas_habiles
+    description: >
+      Silver intermedio. Una fila por tarea (mismo grano que stg_permisos).
+      Calcula HorasTotales / DiasHabiles de Power BI: jornada 07:30–17:30,
+      sin noches, sin sábados/domingos y sin festivos de stg_dias_nolaborables.
+      dias_habiles_mix usa el tiempo cerrado si hay FIN; si la tarea sigue
+      abierta, usa horas hasta ahora (America/sesión Snowflake).
+    columns:
+      - name: tramite_id
+        description: "Identificador del trámite DECIDE. Se repite porque hay varias tareas por trámite."
+        tests:
+          - not_null
+      - name: tarea_orden
+        description: Orden de la tarea dentro del trámite (columna ORDEN de DECIDE).
+        tests:
+          - not_null
+      - name: horas_habiles
+        description: >
+          Horas netas entre fecha_inicia_tarea y fecha_finaliza_tarea recortadas
+          a 07:30–17:30 en días hábiles. NULL si falta alguno de los dos timestamps.
+        tests:
+          - not_null:
+              config:
+                where: "fecha_inicia_tarea is not null and fecha_finaliza_tarea is not null"
+      - name: dias_habiles
+        description: horas_habiles / 10 (un día hábil AMVA = 10 horas de jornada).
+      - name: horas_habiles_hasta_hoy
+        description: >
+          Misma fórmula con fin = menor(fecha_finaliza_tarea, ahora). Sirve para
+          tareas abiertas (sin FIN) o para cortar al día de corrida.
+      - name: dias_habiles_mix
+        description: COALESCE(dias_habiles, dias_habiles_hasta_hoy), como DiasHabiles_Mix en DAX.
+
+unit_tests:
+  - name: horas_habiles_casos_jornada
+    description: >
+      Casos del DAX/Python: mismo día 8 h y 10 h, sábado 0, 1 de enero 0,
+      jueves–viernes 3 h, viernes–lunes 3 h (salta fin de semana), cruce de
+      año nuevo 3 h, FIN anterior a INICIO = 0, timestamps incompletos = NULL.
+    model: int_horas_habiles
+    given:
+      - input: ref('stg_permisos')
+        rows:
+          - {tramite_id: T1, tarea_orden: 1, fecha_inicia_tarea: "2024-01-10 08:00:00", fecha_finaliza_tarea: "2024-01-10 16:00:00"}
+          - {tramite_id: T2, tarea_orden: 1, fecha_inicia_tarea: "2024-01-10 07:30:00", fecha_finaliza_tarea: "2024-01-10 17:30:00"}
+          - {tramite_id: T3, tarea_orden: 1, fecha_inicia_tarea: "2024-01-13 10:00:00", fecha_finaliza_tarea: "2024-01-13 16:00:00"}
+          - {tramite_id: T4, tarea_orden: 1, fecha_inicia_tarea: "2024-01-01 08:00:00", fecha_finaliza_tarea: "2024-01-01 16:00:00"}
+          - {tramite_id: T5, tarea_orden: 1, fecha_inicia_tarea: "2024-01-11 16:00:00", fecha_finaliza_tarea: "2024-01-12 09:00:00"}
+          - {tramite_id: T6, tarea_orden: 1, fecha_inicia_tarea: "2024-01-12 16:00:00", fecha_finaliza_tarea: "2024-01-15 09:00:00"}
+          - {tramite_id: T7, tarea_orden: 1, fecha_inicia_tarea: "2023-12-29 16:00:00", fecha_finaliza_tarea: "2024-01-02 09:00:00"}
+          - {tramite_id: T8, tarea_orden: 1, fecha_inicia_tarea: "2024-01-10 16:00:00", fecha_finaliza_tarea: "2024-01-10 08:00:00"}
+          - {tramite_id: T9, tarea_orden: 1, fecha_inicia_tarea: "2024-01-10 08:00:00", fecha_finaliza_tarea: null}
+      - input: ref('stg_dias_nolaborables')
+        rows:
+          - {fecha_no_laborable: "2024-01-01"}
+    expect:
+      rows:
+        - {tramite_id: T1, horas_habiles: 8.0}
+        - {tramite_id: T2, horas_habiles: 10.0}
+        - {tramite_id: T3, horas_habiles: 0.0}
+        - {tramite_id: T4, horas_habiles: 0.0}
+        - {tramite_id: T5, horas_habiles: 3.0}
+        - {tramite_id: T6, horas_habiles: 3.0}
+        - {tramite_id: T7, horas_habiles: 3.0}
+        - {tramite_id: T8, horas_habiles: 0.0}
+        - {tramite_id: T9, horas_habiles: null}

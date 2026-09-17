@@ -1,0 +1,41 @@
+# Airflow local, SequentialExecutor, un solo contenedor.
+# Puerto 8081: en esta máquina 8080 suele estar ocupado.
+#
+#   cd airflow
+#   copy .env.example .env   (y pegue SNOWFLAKE_PASSWORD)
+#   docker compose up --build
+#   http://localhost:8081  (usuario/contraseña: admin / admin)
+#
+# El DAG nace pausado. No dispara el warehouse hasta un Trigger.
+
+services:
+  airflow:
+    build: .
+    ports:
+      - "8081:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      AMVA_PROJECT_DIR: /opt/airflow/project
+      DBT_PROFILES_DIR: /opt/airflow/project
+      SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD:-}
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ..:/opt/airflow/project
+    user: "0:0"
+    command: >
+      bash -c "airflow db migrate
+      && airflow users create --username admin --firstname AMVA --lastname Admin
+         --role Admin --email admin@localhost --password admin || true
+      && airflow standalone"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s

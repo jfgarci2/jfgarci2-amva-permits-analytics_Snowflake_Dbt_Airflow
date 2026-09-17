@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: stg_dias_nolaborables
+    description: >
+      Silver del calendario AMVA. Una fila = una fecha no laborable.
+      Obligatorio para HorasTotales / DiasHabiles (jornada 7:30-17:30).
+    columns:
+      - name: id_nolaboral
+        tests:
+          - not_null
+          - unique
+      - name: fecha_no_laborable
+        tests:
+          - not_null
+          - unique

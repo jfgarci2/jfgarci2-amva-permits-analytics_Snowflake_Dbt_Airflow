@@ -1,0 +1,33 @@
+# Proyecto dbt AMVA: staging Silver, horas hábiles, mart SGC y mart trámite/geo.
+
+name: amva_pipeline
+version: "1.0.0"
+config-version: 2
+profile: amva_pipeline
+
+require-dbt-version: ">=1.9.0"
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Snowflake: el target de profiles.yml es AMVA_ENV.SILVER.
+# generate_schema_name escribe +schema: GOLD en AMVA_ENV.GOLD
+# (sin concatenar SILVER_GOLD). Vistas en trial: no copian 216k filas.
+
+models:
+  amva_pipeline:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: view
+      +schema: GOLD

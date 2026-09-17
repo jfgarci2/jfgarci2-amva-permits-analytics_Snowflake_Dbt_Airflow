@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: mart_tramites_geo
+    description: >
+      Gold a grano trámite (una fila por permiso). Enrolla horas/días hábiles
+      de mart_tareas_sgc (solo tareas con contar_dias_habiles = SI) y adjunta
+      municipio + lat/lon reales de DECIDE. Lat/lon NULL si no hay punto dentro
+      del Valle de Aburrá; no se fabrican coordenadas. El JSON del tablero
+      agrega este mart; no exporta las 216k tareas.
+    columns:
+      - name: tramite_id
+        description: "Clave primaria. Un trámite, una fila."
+        tests:
+          - unique
+          - not_null
+      - name: municipio
+        description: Municipio DECIDE (puede existir sin GPS).
+      - name: n_tareas
+        description: Número de tareas del trámite.
+        tests:
+          - not_null
+      - name: n_tareas_sgc
+        description: Tareas con contar_dias_habiles = SI.
+        tests:
+          - not_null
+      - name: horas_habiles_sgc
+        description: Suma de horas_habiles de las tareas que entran al KPI SGC.
+      - name: dias_habiles_sgc
+        description: Suma de dias_habiles de esas mismas tareas (jornada 10 h).
+      - name: latitud
+        description: >
+          WGS84 de DECIDE (trámite o visita) si cae en lat 5.9–6.6.
+          NULL = sin punto usable; no es un centroide inventado.
+      - name: longitud
+        description: WGS84 de DECIDE si cae en lon -75.7 a -75.3. NULL si no hay.
+      - name: origen_coordenada
+        description: TRAMITE, VISITA, o NULL si no hay coordenada válida.
+      - name: estado_sgc
+        description: ESTADOSGC de la última tarea del trámite (DECIDE nativo).
+      - name: agrupacion_sgc
+        description: AGRUPACION de la última tarea (DECIDE nativo).

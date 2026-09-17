@@ -1,0 +1,21 @@
+{
+  "crs": "EPSG:4326",
+  "bbox": [
+    -75.685796,
+    6.048293,
+    -75.299622,
+    6.4707099999999995
+  ],
+  "imageOverlay": [
+    [
+      6.048293,
+      -75.685796
+    ],
+    [
+      6.4707099999999995,
+      -75.299622
+    ]
+  ],
+  "layer": "PerimetroUrbanoAMVA_25072025",
+  "src_crs": "PROJCS[\"MAGNA_Colombia_CTM12\",GEOGCS[\"MAGNA-SIRGAS\",DATUM[\"Marco_Geocentrico_Nacional_de_Referencia\",SPHEROID[\"GRS 1980\",6378137,298.257222101,AUTHORITY[\"EPSG\",\"7019\"]],AUTHORITY[\"EPSG\",\"6686\"]],PRIMEM[\"Greenwich\",0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"latitude_of_origin\",4],PARAMETER[\"central_meridian\",-73],PARAMETER[\"scale_factor\",0.9992],PARAMETER[\"false_easting\",5000000],PARAMETER[\"false_northing\",2000000],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]"
+}

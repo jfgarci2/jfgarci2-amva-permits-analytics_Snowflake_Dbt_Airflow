@@ -1,0 +1,81 @@
+# =====================================================================
+#  CI — CONTINUOUS INTEGRATION
+# =====================================================================
+#  QUÉ ES CI, sin rodeos:
+#  "Cada vez que alguien propone un cambio (pull request), una máquina limpia
+#   descarga el código, lo construye desde cero y lo prueba. Si algo falla,
+#   el cambio NO se puede fusionar."
+#
+#  Traducido a este repo: en cada PR, GitHub levanta un Ubuntu, instala dbt
+#  y PARSEA todos los modelos. No corre SQL contra Snowflake.
+#
+#  ¿Por qué DuckDB / parse y no dbt build en Snowflake?
+#  Porque el trial XS cobra cuando el warehouse está encendido. CI en cada
+#  push gastaría créditos sin dar más señal que un parse. ESTA ES UNA
+#  DECISIÓN DE COSTO — la misma del repo de catastro Medellín (allí CI
+#  corría dbt build en DuckDB, no en Databricks).
+#
+#  EN: "CI parses the dbt project on DuckDB inside the GitHub runner.
+#       It does not start the Snowflake warehouse. Broken YAML or a missing
+#       ref never reaches main, and the trial credits stay intact."
+# =====================================================================
+
+name: CI — dbt parse + scripts
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DBT_PROFILES_DIR: ./ci
+
+jobs:
+  lint:
+    name: Lint (SQL + Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Instalar linters
+        run: pip install sqlfluff==3.2.5 ruff==0.8.4
+      - name: Lint SQL (sqlfluff)
+        run: sqlfluff lint amva_pipeline/models --dialect snowflake --nofail
+      - name: Lint Python (ruff)
+        run: ruff check scripts/ airflow/dags --output-format=github || true
+
+  dbt_parse:
+    name: dbt parse (sin warehouse)
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: amva_pipeline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Instalar dbt
+        run: pip install "dbt-snowflake>=1.9.0,<2.0.0" "dbt-duckdb>=1.9.0,<2.0.0"
+      - name: Parse del proyecto
+        env:
+          SNOWFLAKE_PASSWORD: ci-no-conecta
+        run: dbt parse --profiles-dir ../ci --target ci --quiet
+
+  python_scripts:
+    name: scripts Python + DAG
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Sintaxis
+        run: python -m compileall -q scripts airflow/dags

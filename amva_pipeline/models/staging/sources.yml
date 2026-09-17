@@ -1,0 +1,48 @@
+version: 2
+
+# Fuentes Bronze. El calendario de días no laborables NO es opcional:
+# HorasTotales / DiasHabiles (jornada 7:30–17:30, sin sábados/domingos/festivos)
+# DEBEN unirse a esta tabla. Sin ella, el SQL de tiempo hábil está incompleto.
+
+sources:
+  - name: bronze
+    description: >
+      Capa Bronze (carga cruda anonimizada). Incluye el extracto DECIDE y el
+      calendario AMVA de días no laborables. Cuando exista la tabla en
+      AMVA_ENV.BRONZE, dbt la lee con source('bronze', 'dias_nolaborables').
+    database: AMVA_ENV
+    schema: BRONZE
+    tables:
+      - name: dias_nolaborables
+        description: >
+          Calendario de días no laborables / festivos AMVA (extracto
+          DIAS_NOLABORABLES.xlsx). Motor de todas las métricas DAX de tiempo:
+          HorasTotales, DiasHabiles, jornada 7:30–17:30. Excluir sábados,
+          domingos Y estas fechas. Fuente de verdad en disco:
+          Bases de datos AMVA/raw/DIAS_NOLABORABLES.xlsx (gitignored).
+          Seed dbt opcional más adelante; hoy es stub de source.
+        identifier: dias_nolaborables
+        columns:
+          - name: ID_NOLABORAL
+            description: Clave del extracto (entero). No usar como fecha.
+          - name: D_DIA
+            description: >
+              Fecha no laborable (datetime). COLUMNA DE JOIN. El SQL de
+              HorasTotales / DiasHabiles debe excluir esta fecha (anti-join).
+              Rango observado en el Excel: 2016-01-01 a 2025-11-30.
+          - name: YEAR
+            description: Año de D_DIA (entero).
+          - name: MONTH
+            description: Mes de D_DIA (1-12).
+          - name: DAY
+            description: Día del mes de D_DIA (1-31).
+          - name: WEEKDAY_NUM
+            description: >
+              Día de la semana. En el extracto, 6 = sábado y 7 = domingo
+              (2016-08-20 = sábado = 6). 1-5 = festivos en lunes-viernes.
+      - name: permisos
+        description: >
+          Extracto DECIDE anonimizado (archivo completo). Sin CODFUNCIONARIO,
+          FUNCIONARIO, TERCERO (Ley 1581). Grano: 1 fila = 1 tarea de un trámite.
+        identifier: permisos
+

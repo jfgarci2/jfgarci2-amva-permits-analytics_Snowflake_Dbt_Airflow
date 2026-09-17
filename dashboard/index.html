@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Geoportal de permisos y licencias ambientales — AMVA</title>
+<link rel="icon" href="assets/amva-logo.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<style>
+:root{
+  --amva:#7cb342; --amva-mid:#5e9a2c; --amva-dark:#2d4a1c; --amva-deep:#1f3316;
+  --steel:#3a403c; --ink:#1b211c; --muted:#5b645c; --line:#c9d0c4;
+  --bg:#eef2ea; --panel:#f6f7f3; --ok:#3d8a2a; --warn:#b45309; --off:#8a3b3b;
+  --shadow:0 6px 18px rgba(31,51,22,.14);
+  --left:286px; --head:46px; --leg:196px; --dock:36px; --dock-open:200px;
+}
+body.dock-open{--dock:var(--dock-open)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:"Segoe UI",system-ui,sans-serif;color:var(--ink);background:#dfe5d8}
+#map{position:absolute;inset:var(--head) 0 var(--dock) var(--left);background:#1c1c14}
+.leaflet-control-zoom{border:0!important;box-shadow:var(--shadow)!important}
+.leaflet-control-zoom a{width:30px!important;height:30px!important;line-height:30px!important;color:var(--amva-dark)!important}
+.leaflet-bar{border:0!important}
+.leaflet-bottom.leaflet-left{left:8px;bottom:6px}
+.riolab{color:#0b4a8f;font-size:10px;font-weight:650;text-shadow:0 0 3px #fff;white-space:nowrap}
+.munlab{color:#1f3316;font-size:10px;font-weight:800;text-shadow:0 0 4px #fff,0 0 4px #fff;white-space:nowrap;pointer-events:none}
+.sel-ring{animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{0%{opacity:.9}70%{opacity:.15}100%{opacity:0}}
+header{position:absolute;left:0;right:0;top:0;height:var(--head);z-index:2000;background:linear-gradient(90deg,#4e8c22,#7cb342 48%,#8bc34a);color:#fff;display:flex;align-items:center;gap:12px;padding:0 12px 0 10px;border-bottom:3px solid var(--amva-deep)}
+header img{height:36px;background:#fff;border-radius:2px;padding:2px}
+header .brand{flex:1;min-width:0}
+header h1{margin:0;font-size:13.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header p{margin:1px 0 0;font-size:10px;opacity:.92}
+.bases{display:flex;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.25);padding:2px}
+.bases button{appearance:none;border:0;background:transparent;color:#f4ffe8;font:700 10px/1 "Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:7px 10px;cursor:pointer}
+.bases button.on{background:#fff;color:var(--amva-dark)}
+#btn-home,#btn-extent{appearance:none;border:0;background:#fff;color:var(--amva-dark);cursor:pointer;font:800 11px/1.1 "Segoe UI",sans-serif;letter-spacing:.04em;text-transform:uppercase;padding:8px 12px;border-radius:2px;white-space:nowrap}
+#btn-extent{background:var(--amva);color:#fff;box-shadow:var(--shadow)}
+#btn-extent:hover{background:var(--amva-mid)}
+.leaflet-popup.amva-pop .leaflet-popup-content-wrapper{border-radius:8px!important;border:0!important;box-shadow:0 8px 22px rgba(31,51,22,.2)!important;padding:0!important;overflow:hidden}
+.leaflet-popup.amva-pop .leaflet-popup-content{margin:0!important;min-width:168px;width:196px}
+.leaflet-popup.amva-pop .leaflet-popup-tip-container{display:none}
+.leaflet-container a.leaflet-popup-close-button{top:6px;right:6px;color:#fff!important;width:18px;height:18px;font-size:14px}
+.pop-h{background:linear-gradient(90deg,#4e8c22,#7cb342);color:#fff;padding:8px 28px 8px 10px}
+.pop-h .k{display:block;font-size:8px;letter-spacing:.12em;text-transform:uppercase;opacity:.85;font-weight:800}
+.pop-h strong{display:block;font-size:15px;letter-spacing:.02em;margin-top:1px}
+.pop-body{padding:8px 10px 10px;background:#fff}
+.pop-pills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px}
+.pop-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 0 6px}
+.pop-stats div{background:#f3ffe6;border-radius:4px;padding:5px 7px}
+.pop-stats em{display:block;font-style:normal;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--amva-mid);font-weight:800}
+.pop-stats b{font-size:13px;color:var(--amva-dark);font-variant-numeric:tabular-nums}
+.pop dl{margin:0;display:grid;grid-template-columns:40% 60%;font-size:11px}
+.pop dt{margin:0;color:var(--muted);padding:3px 0;border-bottom:1px solid #eef1ea;font-weight:650}
+.pop dd{margin:0;padding:3px 0;border-bottom:1px solid #eef1ea;color:var(--ink)}
+.pop-go{display:block;width:100%;margin-top:8px;appearance:none;border:0;background:var(--amva);color:#fff;font:800 10px/1 "Segoe UI",sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:8px 10px;border-radius:4px;cursor:pointer}
+.pop-go:hover{background:var(--amva-mid)}
+.leaflet-tooltip.amva-tip{background:#1f3316;color:#fff;border:0;border-radius:3px;padding:4px 8px;font:700 11px/1.2 "Segoe UI",sans-serif;box-shadow:var(--shadow)}
+.leaflet-tooltip.amva-tip:before{border-right-color:#1f3316}
+#idcard{display:none}
+#map-tools{display:none}
+#btn-clear{appearance:none;border:0;background:#fff;color:var(--amva-dark);cursor:pointer;font:800 11px/1.1 "Segoe UI",sans-serif;letter-spacing:.04em;text-transform:uppercase;padding:8px 12px;border-radius:2px;white-space:nowrap}
+#btn-clear[disabled]{opacity:.45;cursor:default}
+.search-row{display:flex;gap:6px}
+.search-row input{flex:1;min-width:0}
+#btn-qclear{appearance:none;border:1px solid var(--line);background:#fff;color:var(--muted);font:800 10px/1 "Segoe UI",sans-serif;letter-spacing:.04em;text-transform:uppercase;padding:0 8px;cursor:pointer}
+#panelL{position:absolute;top:var(--head);bottom:0;left:0;width:var(--left);z-index:1500;background:var(--panel);display:flex;flex-direction:column;border-right:1px solid #b7c0b0;box-shadow:4px 0 16px rgba(31,51,22,.08)}
+.p-head{padding:8px 12px 7px;border-bottom:1px solid var(--line);background:#fff}
+.p-head h2{margin:0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--amva-mid);font-weight:800}
+.p-head span{display:block;margin-top:1px;font-size:10px;color:var(--muted);line-height:1.3}
+.search-box{padding:8px 12px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid var(--line);background:#fff;position:relative}
+.search-box select,.search-box input{width:100%;border:1px solid var(--line);border-radius:2px;padding:7px 8px;font-size:12px;background:#fff;color:var(--ink)}
+.search-box input:focus,.search-box select:focus{outline:2px solid rgba(124,179,66,.35);border-color:var(--amva)}
+.suggest{display:none;position:absolute;left:12px;right:12px;top:100%;z-index:20;background:#fff;border:1px solid var(--line);max-height:220px;overflow:auto;box-shadow:var(--shadow)}
+.suggest button{display:block;width:100%;text-align:left;border:0;background:#fff;padding:7px 10px;font:700 12px/1.2 "Segoe UI",sans-serif;cursor:pointer}
+.suggest button:hover{background:#eef6e4}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:#fff}
+.tabs button{flex:1;border:0;background:none;padding:8px 2px 7px;font:800 10px/1 "Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--amva-dark);border-bottom-color:var(--amva)}
+.tabpage{flex:1;overflow:auto;padding:8px 10px 14px;background:var(--bg)}
+.hint{font-size:11px;color:var(--muted);padding:14px 6px;text-align:center;line-height:1.45}
+.hit{background:#fff;border:1px solid var(--line);border-radius:2px;padding:7px 8px;margin-bottom:6px;cursor:pointer}
+.hit:hover,.hit.on{border-color:var(--amva);box-shadow:0 0 0 2px rgba(124,179,66,.18)}
+.hit .u{font-weight:700;font-size:12px;color:var(--amva-dark)}
+.hit .m{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.35}
+.pill{display:inline-block;font-size:9px;font-weight:800;padding:1px 6px;border-radius:1px;margin-right:4px;letter-spacing:.03em;text-transform:uppercase}
+.st-ok{background:#e7f6dc;color:var(--ok)}
+.st-off{background:#fdecec;color:var(--off)}
+.st-w{background:#fff4e5;color:var(--warn)}
+.ficha{background:#fff;border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.ficha-top{padding:10px 12px 9px;border-bottom:3px solid var(--amva)}
+.ficha-top h3{margin:6px 0 3px;font-size:14px;color:var(--amva-dark)}
+.ficha-top .ids{font-size:11px;color:var(--muted)}
+.grp{padding:8px 12px 4px}
+.grp h4{margin:0 0 4px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--amva-mid);font-weight:800}
+.kv{display:grid;grid-template-columns:42% 58%;font-size:11px}
+.kv div{padding:4px 0;border-bottom:1px solid #eef1ea}
+.kv .k{color:var(--muted);font-weight:650}
+.hist{width:100%;border-collapse:collapse;font-size:11px}
+.hist th{text-align:left;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--amva-mid);padding:6px 8px;border-bottom:2px solid var(--amva);background:#f3ffe6;position:sticky;top:0}
+.hist td{padding:5px 8px;border-bottom:1px solid #eef1ea;vertical-align:top}
+.hist td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;padding:8px 10px 12px}
+.gcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--amva);padding:8px 10px}
+.gcard .nm{font-size:11px;font-weight:700;color:var(--amva-dark);line-height:1.3;min-height:2.6em}
+.gcard .row{display:flex;justify-content:space-between;font-size:11px;margin-top:4px;color:var(--steel)}
+.gcard .row b{color:var(--ink);font-variant-numeric:tabular-nums}
+#dock{position:absolute;left:var(--left);right:0;bottom:0;height:var(--dock);z-index:1350;background:#fff;border-top:2px solid var(--amva-deep);display:flex;flex-direction:column;box-shadow:0 -4px 14px rgba(31,51,22,.08)}
+.dock-bar{display:flex;align-items:center;gap:8px;padding:0 10px;background:#f6f7f3;border-bottom:1px solid var(--line);flex:none;height:36px}
+.dock-bar h3{margin:0;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--amva-dark);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dock-bar .tabs{border:0;flex:none}
+.dock-bar .tabs button{padding:8px 10px}
+#dock-toggle{appearance:none;border:0;background:var(--amva);color:#fff;font:800 10px/1 "Segoe UI",sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;cursor:pointer;border-radius:2px}
+body:not(.dock-open) .dock-page,body:not(.dock-open) #dock-tabs{display:none!important}
+.dock-page{flex:1;overflow:auto;background:#fff}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 10px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:2px;padding:8px 9px 7px;border-top:3px solid var(--amva)}
+.kpi b{display:block;font-size:18px;color:var(--amva-dark);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi small{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.07em;font-weight:800}
+.lead{margin:0 0 10px;font-size:12px;line-height:1.45;color:var(--steel);background:#fff;border:1px solid var(--line);border-left:3px solid var(--amva);padding:8px 10px}
+.lead b{color:var(--amva-dark)}
+.sec{background:#fff;border:1px solid var(--line);border-radius:2px;padding:9px 10px 8px;margin-bottom:8px}
+.sec h3{margin:0 0 2px;font-size:10px;color:var(--amva-dark);letter-spacing:.06em;text-transform:uppercase}
+.sec-note{margin:0 0 8px;font-size:10px;color:var(--muted);line-height:1.35}
+.rank{display:block;width:100%;text-align:left;border:0;background:transparent;padding:7px 0 8px;border-bottom:1px solid #eef1ea;cursor:pointer}
+.rank:last-child{border-bottom:0}
+.rank:hover .rank-name{color:var(--amva-mid)}
+.rank-h{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:6px;align-items:start}
+.rank-i{font-size:10px;font-weight:800;color:var(--muted);padding-top:1px}
+.rank-name{font-size:12px;font-weight:700;color:var(--amva-dark);line-height:1.25}
+.rank-val{font-size:13px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rank-val small{font-size:9px;font-weight:700;color:var(--muted);margin-left:2px}
+.bar{height:4px;background:#e7eddf;border-radius:2px;margin:5px 0 3px 24px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--amva);border-radius:2px}
+.rank.warn .bar i{background:var(--warn)}
+.rank.mute .rank-name,.rank.mute .rank-val{color:var(--muted);font-weight:650}
+.rank-sub{margin-left:24px;font-size:10px;color:var(--muted)}
+.chip{display:none}
+#panelR{position:absolute;top:calc(var(--head) + 8px);right:8px;width:var(--leg);z-index:1600;background:rgba(246,247,243,.96);border:1px solid #b7c0b0;box-shadow:var(--shadow);max-height:calc(100% - var(--head) - var(--dock) - 24px);overflow:auto}
+#panelR.collapsed #leg-body{display:none}
+#panelR .p-head{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--amva-dark);border-bottom:0}
+#panelR .p-head h2{color:#d7efb8;margin:0}
+#leg-min{appearance:none;border:0;background:transparent;color:#fff;font:800 12px/1 sans-serif;cursor:pointer}
+.sect{padding:6px 8px 4px}
+.sect h3{margin:0 0 4px;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--amva-mid);font-weight:800}
+.sw{display:grid;grid-template-columns:10px minmax(0,1fr) auto 12px;gap:6px;align-items:start;padding:3px 0;cursor:pointer;border-bottom:1px solid #eef1ea}
+.sw .dot{width:8px;height:8px;border-radius:50%;margin-top:3px;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+.sw .txt{font-size:11px;line-height:1.25}
+.sw .n{font-size:10px;color:var(--muted);font-weight:700}
+.chk{width:12px;height:12px;border:1px solid #8a9484;background:#fff;margin-top:2px;position:relative}
+.sw.on .chk{background:var(--amva);border-color:var(--amva-mid)}
+.sw.on .chk:after{content:"";position:absolute;left:3px;top:0;width:4px;height:8px;border:solid #fff;border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.tip-id{background:#1f3316!important;color:#fff!important;border:0!important;padding:5px 8px!important;font:11px/1.35 "Segoe UI",sans-serif!important}
+@media(max-width:1100px){:root{--left:248px;--leg:180px}}
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/amva-logo.png" alt="Área Metropolitana del Valle de Aburrá">
+  <div class="brand">
+    <h1>Permisos y licencias ambientales</h1>
+    <p>Área Metropolitana del Valle de Aburrá · Control Ambiental · SIG</p>
+  </div>
+  <button type="button" id="btn-home" title="Volver al Valle de Aburrá">Centrar mapa</button>
+  <button type="button" id="btn-clear" disabled>Limpiar</button>
+  <div class="bases" title="Mapa base">
+    <button data-b="local" class="on" title="Foto empaquetada. Funciona sin internet">Foto local</button>
+    <button data-b="sat" title="Teselas Esri. Requiere internet">Satélite</button>
+    <button data-b="streets" title="Requiere internet">Calles</button>
+    <button data-b="light" title="Requiere internet">Claro</button>
+  </div>
+</header>
+
+<aside id="panelL">
+  <div class="p-head">
+    <h2>Consulta e indicadores</h2>
+    <span>Filtre, busque un trámite o lea los tiempos SGC</span>
+  </div>
+  <div class="search-box">
+    <select id="fClas"><option value="">Todas las clasificaciones</option></select>
+    <select id="fMun"><option value="">Todos los municipios</option></select>
+    <select id="fGrupo"><option value="">Todos los grupos</option></select>
+    <div class="search-row">
+      <input id="q" type="text" placeholder="Ej. 1650354" autocomplete="off">
+      <button type="button" id="btn-qclear">Limpiar</button>
+    </div>
+    <div id="suggest" class="suggest"></div>
+  </div>
+  <div class="tabs">
+    <button data-tab="kpi" class="on">Indicadores</button>
+    <button data-tab="ficha">Ficha</button>
+    <button data-tab="res">Búsqueda</button>
+  </div>
+  <div id="tab-kpi" class="tabpage">
+    <div id="kpi-lead" class="lead">Cargando lectura del tablero…</div>
+    <div class="kpis" id="kpis"></div>
+    <div class="sec">
+      <h3>Demora media por grupo de trabajo</h3>
+      <p class="sec-note">Días hábiles SGC · jornada 07:30–17:30 · SGC_Modificado v7</p>
+      <div id="kpi-grupos"></div>
+    </div>
+    <div class="sec">
+      <h3>Dónde se concentran los trámites</h3>
+      <div id="kpi-mun"></div>
+    </div>
+  </div>
+  <div id="tab-ficha" class="tabpage" style="display:none"><div id="ficha"><div class="hint">Seleccione un trámite en el mapa o escríbalo arriba. La historia de tareas se abre en el panel inferior.</div></div></div>
+  <div id="tab-res" class="tabpage" style="display:none"><div id="results"><div class="hint">Escriba un código de trámite para ver coincidencias.</div></div></div>
+</aside>
+
+<div id="map"></div>
+<div id="dock">
+  <div class="dock-bar">
+    <h3 id="dock-title">Tiempos e historia</h3>
+    <div class="tabs" id="dock-tabs">
+      <button type="button" data-dock="tiempos" class="on">Tiempos por grupo</button>
+      <button type="button" data-dock="hist">Historia de trámite</button>
+    </div>
+    <button type="button" id="dock-toggle">Abrir panel</button>
+  </div>
+  <div id="dock-tiempos" class="dock-page"><div class="ggrid" id="ggrid"></div></div>
+  <div id="dock-hist" class="dock-page" style="display:none"><div class="hint">Elija un trámite en el mapa o escriba su código. Aquí se listan las tareas del 1 a la última, con horas y días hábiles.</div></div>
+</div>
+<div id="map-tools" hidden></div>
+<div id="idcard" class="empty" hidden></div>
+
+<aside id="panelR">
+  <div class="p-head">
+    <h2>Convenciones</h2>
+    <button type="button" id="leg-min" title="Contraer">–</button>
+  </div>
+  <div id="leg-body">
+    <div class="sect">
+      <h3>Contexto</h3>
+      <div class="sw on" data-over="muni"><span class="dot" style="background:#7d8c82"></span><span class="txt">Municipios AMVA</span><span></span><span class="chk"></span></div>
+      <div class="sw on" data-over="perim"><span class="dot" style="background:#e2b007"></span><span class="txt">Perímetro urbano</span><span></span><span class="chk"></span></div>
+      <div class="sw on" data-over="redrio"><span class="dot" style="background:#1769b0"></span><span class="txt">Red hídrica</span><span></span><span class="chk"></span></div>
+      <div class="sw on" data-over="munlab"><span class="dot" style="background:#2d4a1c"></span><span class="txt">Nombres de municipio</span><span></span><span class="chk"></span></div>
+    </div>
+    <div class="sect">
+      <h3>Clasificación del permiso</h3>
+      <div id="leg-clas"></div>
+    </div>
+  </div>
+</aside>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  const PALETTE = ["#1f77b4","#8c564b","#9467bd","#d62728","#2ca02c","#ff7f0e","#17becf","#e377c2","#bcbd22","#7f7f7f","#393b79","#637939"];
+  const MUN_FIX = {ITAGUI:"Itagüí", MEDELLIN:"Medellín"};
+
+  function $(id) { return document.getElementById(id); }
+  function dict(arr, i) {
+    if (i === null || i === undefined || i === "") return "—";
+    const v = arr && arr[i];
+    return v == null || v === "" ? "—" : String(v);
+  }
+  function cleanMun(s) {
+    s = String(s || "").replace(/^M\d+\s*-\s*/i, "").replace(/_/g, " ").trim();
+    const k = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    return MUN_FIX[k] || s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  }
+  function fmt(n, d) {
+    if (n == null || n === "" || Number.isNaN(+n)) return "—";
+    return Number(n).toLocaleString("es-CO", { maximumFractionDigits: d ?? 2 });
+  }
+  function showTab(id) {
+    document.querySelectorAll("#panelL .tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === id));
+    ["res","ficha","kpi"].forEach(t => { const el = $("tab-" + t); if (el) el.style.display = t === id ? "block" : "none"; });
+  }
+  function decodeRow(TR, r) {
+    const d = TR.d;
+    return {
+      id: r[0], mun: cleanMun(dict(d.m, r[1])), grupo: dict(d.g, r[2]), agr: dict(d.a, r[3]),
+      clas: dict(d.c, r[4]), est: dict(d.e, r[5]), nt: r[6], ns: r[7], h: r[8], d: r[9],
+      lat: r[10], lon: r[11]
+    };
+  }
+  function styleFor(map, clas) {
+    if (!map[clas]) {
+      const i = Object.keys(map).length;
+      map[clas] = PALETTE[i % PALETTE.length];
+    }
+    return map[clas];
+  }
+  function estClass(e) {
+    const x = (e || "").toLowerCase();
+    if (x.includes("cerrad")) return "st-ok";
+    if (x.includes("abiert") || x.includes("tramite")) return "st-w";
+    return "st-off";
+  }
+
+  const streets = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri, Maxar" });
+  const light = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri" });
+  const FOTO_URL = (window.__AMVA__ && window.__AMVA__.foto) || "assets/satelite-aburra.jpg";
+  const FOTO_BOUNDS = [[6.068293, -75.665796], [6.45071, -75.319622]];
+  const map = L.map("map", { zoomControl: true, zoomSnap: 0.5, minZoom: 10 });
+  map.createPane("foto");
+  map.getPane("foto").style.zIndex = 200;
+  const local = L.imageOverlay(FOTO_URL, FOTO_BOUNDS, { pane: "foto", opacity: 1, interactive: false }).addTo(map);
+  const BASES = { local, sat, streets, light };
+  map.createPane("puntos");
+  map.getPane("puntos").style.zIndex = 650;
+  map.getPane("puntos").style.pointerEvents = "auto";
+  L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
+
+  let TR, TA, rows = [], byId = new Map();
+  let muniL, perimL, redL, munLab, pointsGroup, classLayers = {}, classColor = {};
+  let hiddenClas = new Set();
+  let SEL_MARK = null, LOCKED = null, HOME;
+
+  function setBase(id) {
+    Object.keys(BASES).forEach(k => { if (map.hasLayer(BASES[k])) map.removeLayer(BASES[k]); });
+    BASES[id].addTo(map);
+    document.querySelectorAll(".bases button").forEach(b => b.classList.toggle("on", b.dataset.b === id));
+  }
+  document.querySelectorAll(".bases button").forEach(b => b.onclick = () => setBase(b.dataset.b));
+  $("leg-min").onclick = () => $("panelR").classList.toggle("collapsed");
+  document.querySelectorAll(".tabs button[data-tab]").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+  document.querySelectorAll("#dock-tabs button").forEach(b => b.onclick = () => showDock(b.dataset.dock));
+
+  function goHome() {
+    map.closePopup();
+    LOCKED = null;
+    if (SEL_MARK) { map.removeLayer(SEL_MARK); SEL_MARK = null; }
+    if (HOME) map.fitBounds(HOME, { padding: [20, 20], animate: true });
+    map.invalidateSize();
+    showDock("tiempos");
+    setDockOpen(false);
+  }
+  function updateClear() {
+    const on = !!(LOCKED || $("q").value.trim() || $("fClas").value || $("fMun").value || $("fGrupo").value);
+    $("btn-clear").disabled = !on;
+    $("btn-clear").classList.toggle("has", on);
+  }
+  function matches(t) {
+    if ($("fClas").value && t.clas !== $("fClas").value) return false;
+    if ($("fMun").value && t.mun !== $("fMun").value) return false;
+    if ($("fGrupo").value && t.grupo !== $("fGrupo").value) return false;
+    if (hiddenClas.has(t.clas || "Sin clasificación")) return false;
+    return true;
+  }
+  function visible() { return rows.filter(matches); }
+  function nearestPx(latlng, maxPx) {
+    const p = map.latLngToLayerPoint(latlng);
+    let best = null, bestD = Infinity;
+    rows.forEach(t => {
+      if (!t._marker || !pointsGroup || !pointsGroup.hasLayer(t._marker)) return;
+      const q = map.latLngToLayerPoint(t._marker.getLatLng());
+      const d = p.distanceTo(q);
+      if (d < bestD) { bestD = d; best = t; }
+    });
+    return bestD <= maxPx ? best : null;
+  }
+  function setDockOpen(on) {
+    document.body.classList.toggle("dock-open", !!on);
+    const btn = $("dock-toggle");
+    if (btn) btn.textContent = on ? "Cerrar panel" : "Abrir panel";
+    setTimeout(() => map.invalidateSize(), 40);
+  }
+  function showId() {}
+  function clearId() {}
+
+  function popupHtml(t) {
+    return "<div class='pop'><div class='pop-h'><span class='k'>Información del punto</span><strong>" + t.id + "</strong></div>" +
+      "<div class='pop-body'><div class='pop-pills'>" +
+      "<span class='pill " + estClass(t.est) + "'>" + t.est + "</span>" +
+      "<span class='pill st-w'>" + t.clas + "</span></div>" +
+      "<div class='pop-stats'><div><em>Días hábiles SGC</em><b>" + fmt(t.d, 2) + "</b></div>" +
+      "<div><em>Tareas</em><b>" + fmt(t.nt, 0) + "</b></div></div>" +
+      "<dl><dt>Municipio</dt><dd>" + t.mun + "</dd>" +
+      "<dt>Grupo</dt><dd>" + shortGrupo(t.grupo) + "</dd>" +
+      "<dt>Horas hábiles</dt><dd>" + fmt(t.h, 1) + "</dd></dl>" +
+      "<button type='button' class='pop-go' data-hist='" + t.id + "'>Ver historia</button></div></div>";
+  }
+
+  function showDock(id) {
+    document.querySelectorAll("#dock-tabs button").forEach(b => b.classList.toggle("on", b.dataset.dock === id));
+    $("dock-tiempos").style.display = id === "tiempos" ? "block" : "none";
+    $("dock-hist").style.display = id === "hist" ? "block" : "none";
+    $("dock-title").textContent = id === "hist" ? "Historia de trámite" : "Tiempos por grupo de trabajo";
+  }
+  function shortGrupo(g) {
+    const s = String(g || "Sin grupo");
+    const map = {
+      "Gestión Jurídica - Ambiental": "Jurídica ambiental",
+      "Gestión Control - Ambiental": "Control ambiental",
+      "Gestión Autoridad Ambiental Urbana": "Autoridad ambiental urbana",
+      "Gestión de la Información, el Conocimiento y las Comunicaciones - Administración Documental y Bibiográfica": "Documental e información",
+      "Atención al ciudadano": "Atención al ciudadano",
+      "Gestión documental": "Gestión documental",
+      "Usuario": "Espera del usuario",
+      "Atención al usuario": "Atención al usuario",
+      "Sin grupo": "Sin grupo asignado"
+    };
+    return map[s] || s;
+  }
+  function rankHtml(items, kind) {
+    const max = Math.max.apply(null, items.map(it => it.v || 0).concat([1]));
+    return items.map((it, i) => {
+      const pct = Math.max(4, Math.round(100 * (it.v || 0) / max));
+      const cls = (it.warn ? " warn" : "") + (it.mute ? " mute" : "");
+      return "<button type='button' class='rank" + cls + "' data-kind='" + kind + "' data-key='" + String(it.key).replace(/'/g, "") + "'>" +
+        "<div class='rank-h'><span class='rank-i'>" + (i + 1) + "</span><span class='rank-name'>" + it.label + "</span>" +
+        "<span class='rank-val'>" + it.val + "<small>" + it.unit + "</small></span></div>" +
+        "<div class='bar'><i style='width:" + pct + "%'></i></div>" +
+        "<div class='rank-sub'>" + it.sub + "</div></button>";
+    }).join("");
+  }
+  function groupCardsHtml() {
+    const gs = (TR && TR.grupos) || [];
+    if (!gs.length) return "<div class='hint'>Sin tiempos por grupo en el JSON.</div>";
+    return "<div class='ggrid'>" + gs.map(g =>
+      "<div class='gcard' title='" + g.g + "'><div class='nm'>" + shortGrupo(g.g) + "</div>" +
+      "<div class='row'><span>Promedio días hábiles SGC</span><b>" + fmt(g.ads, 2) + "</b></div>" +
+      "<div class='row'><span>Promedio horas hábiles SGC</span><b>" + fmt(g.ahs, 1) + "</b></div>" +
+      "<div class='row'><span>Trámites</span><b>" + fmt(g.ntr, 0) + "</b></div>" +
+      "<div class='row'><span>Tareas</span><b>" + fmt(g.nt, 0) + "</b></div></div>"
+    ).join("") + "</div>";
+  }
+  function histTableHtml(t) {
+    const hist = taskRows(t.id);
+    if (!hist.length) {
+      return "<div class='hint'>El trámite " + t.id + " no tiene tareas en el export. Si el archivo tareas.json no cargó, recargue la página.</div>";
+    }
+    let html = "<table class='hist'><thead><tr><th>#</th><th>Tarea</th><th>Grupo</th><th>Inicia</th><th>Finaliza</th><th>Horas hábiles</th><th>Días hábiles</th></tr></thead><tbody>";
+    hist.forEach(h => {
+      html += "<tr><td class='num'>" + (h.o == null ? "—" : h.o) + "</td><td>" + h.n + "</td><td>" + h.g + "</td><td class='num'>" + h.fi + "</td><td class='num'>" + h.ff + "</td><td class='num'>" + fmt(h.h, 2) + "</td><td class='num'>" + fmt(h.d, 2) + "</td></tr>";
+    });
+    return html + "</tbody></table>";
+  }
+  function taskRows(id) {
+    const pack = TA && TA.x && TA.x[String(id)];
+    if (!pack) return [];
+    return pack.slice().sort((a, b) => (a[0] || 0) - (b[0] || 0)).map(r => ({
+      o: r[0], n: dict(TA.n, r[1]), fi: r[2] || "—", ff: r[3] || "—",
+      h: r[4], d: r[5], g: dict(TA.g, r[6])
+    }));
+  }
+  function renderFicha(t) {
+    const hist = taskRows(t.id);
+    let html = "<div class='ficha'><div class='ficha-top'>";
+    html += "<span class='pill " + estClass(t.est) + "'>" + t.est + "</span>";
+    html += "<h3>Trámite " + t.id + "</h3>";
+    html += "<div class='ids'>" + t.clas + " · " + t.mun + "</div></div>";
+    html += "<div class='grp'><h4>Identificación</h4><div class='kv'>";
+    [["Número", t.id], ["Municipio", t.mun], ["Clasificación", t.clas], ["Estado", t.est],
+     ["Grupo de trabajo (SGC v7)", t.grupo], ["Agrupación SGC", t.agr],
+     ["Ubicación", t.lat == null ? "Sin coordenadas en DECIDE (no se dibuja en el mapa)" : (fmt(t.lat, 5) + ", " + fmt(t.lon, 5))],
+     ["Tareas", t.nt], ["Tareas SGC", t.ns],
+     ["Horas hábiles SGC", fmt(t.h, 1)], ["Días hábiles SGC", fmt(t.d, 2)]
+    ].forEach(p => { html += "<div class='k'>" + p[0] + "</div><div class='v'>" + p[1] + "</div>"; });
+    html += "</div></div><div class='grp'><h4>Historia de trámite</h4>";
+    if (!hist.length) html += "<p class='hint'>Sin tareas exportadas para este código.</p>";
+    else {
+      html += "<table class='hist'><thead><tr><th>#</th><th>Tarea</th><th>Inicia</th><th>Finaliza</th><th>Horas</th><th>Días</th></tr></thead><tbody>";
+      hist.forEach(h => {
+        html += "<tr><td>" + h.o + "</td><td>" + h.n + "</td><td>" + h.fi + "</td><td>" + h.ff + "</td><td>" + fmt(h.h, 2) + "</td><td>" + fmt(h.d, 2) + "</td></tr>";
+      });
+      html += "</tbody></table>";
+    }
+    html += "</div></div>";
+    $("ficha").innerHTML = html;
+  }
+  function openFicha(t) {
+    LOCKED = t;
+    if (SEL_MARK) { map.removeLayer(SEL_MARK); SEL_MARK = null; }
+    if (t.lat != null && t.lon != null) {
+      const ll = [t.lat, t.lon];
+      SEL_MARK = L.circleMarker(ll, { pane: "puntos", radius: 6, color: "#7cb342", weight: 2, fill: false, className: "sel-ring" }).addTo(map);
+      map.panInside(L.latLng(ll), { paddingTopLeft: [16, 16], paddingBottomRight: [220, 24], maxZoom: map.getZoom() });
+      const mk = t._marker;
+      if (mk) mk.setPopupContent(popupHtml(t)).openPopup();
+    } else {
+      map.closePopup();
+    }
+    renderFicha(t);
+    $("dock-hist").innerHTML = "<div style='padding:6px 8px 4px;font-size:11px;color:var(--muted)'>Trámite " + t.id + " · " + t.nt + " tareas en orden</div>" + histTableHtml(t);
+    showDock("hist");
+    setDockOpen(true);
+    showTab("ficha");
+    updateClear();
+    setTimeout(() => map.invalidateSize(), 50);
+  }
+
+  function applyPointFilter() {
+    rows.forEach(t => {
+      if (!t._marker) return;
+      const on = matches(t);
+      if (on && !pointsGroup.hasLayer(t._marker)) t._marker.addTo(pointsGroup);
+      if (!on && pointsGroup.hasLayer(t._marker)) pointsGroup.removeLayer(t._marker);
+    });
+    renderResults();
+    renderKpis();
+    updateClear();
+  }
+
+  function renderResults() {
+    const q = $("q").value.trim();
+    const box = $("results");
+    if (!q) {
+      box.innerHTML = "<div class='hint'>Escriba un código de trámite o elija un punto del mapa.</div>";
+      return;
+    }
+    const hits = visible().filter(t => String(t.id).indexOf(q) === 0).slice(0, 40);
+    if (!hits.length) { box.innerHTML = "<div class='hint'>Sin resultados para " + q + ".</div>"; return; }
+    box.innerHTML = "";
+    hits.forEach(t => {
+      const d = document.createElement("div");
+      d.className = "hit" + (LOCKED && LOCKED.id === t.id ? " on" : "");
+      d.innerHTML = "<div class='u'>" + t.id + "</div><div class='m'>" + t.clas + " · " + t.mun + (t.lat == null ? " · sin GPS" : "") + "</div>";
+      d.onclick = () => openFicha(t);
+      box.appendChild(d);
+    });
+  }
+  function renderSuggest() {
+    const q = $("q").value.trim();
+    const sg = $("suggest");
+    if (!q) { sg.style.display = "none"; sg.innerHTML = ""; return; }
+    const hits = rows.filter(t => String(t.id).indexOf(q) === 0).slice(0, 12);
+    if (!hits.length) { sg.style.display = "none"; return; }
+    sg.innerHTML = hits.map(t => "<button type='button' data-id='" + t.id + "'>" + t.id + " · " + t.mun + (t.lat == null ? " · sin GPS" : "") + "</button>").join("");
+    sg.style.display = "block";
+    sg.querySelectorAll("button").forEach(b => b.onclick = () => {
+      $("q").value = b.dataset.id;
+      sg.style.display = "none";
+      const t = byId.get(+b.dataset.id);
+      renderResults();
+      if (t) openFicha(t);
+    });
+  }
+  function renderKpis() {
+    const list = visible();
+    const gps = list.filter(t => t.lat != null).length;
+    const avgD = list.reduce((s, t) => s + (t.d || 0), 0) / (list.length || 1);
+    const avgH = list.reduce((s, t) => s + (t.h || 0), 0) / (list.length || 1);
+    $("kpis").innerHTML =
+      "<div class='kpi'><small>Trámites en vista</small><b>" + fmt(list.length, 0) + "</b></div>" +
+      "<div class='kpi'><small>Con ubicación GPS</small><b>" + fmt(gps, 0) + "</b></div>" +
+      "<div class='kpi'><small>Días hábiles SGC</small><b>" + fmt(avgD, 1) + "</b></div>" +
+      "<div class='kpi'><small>Horas hábiles SGC</small><b>" + fmt(avgH, 0) + "</b></div>";
+    $("dock-tiempos").innerHTML = groupCardsHtml();
+
+    const grupos = ((TR && TR.grupos) || []).slice();
+    const activos = grupos.filter(g => g.g !== "Sin grupo");
+    const porDemora = activos.filter(g => g.ads != null).sort((a, b) => (b.ads || 0) - (a.ads || 0));
+    const porVol = activos.slice().sort((a, b) => (b.ntr || 0) - (a.ntr || 0));
+    const lento = porDemora[0];
+    const carga = porVol[0];
+    const lead = $("kpi-lead");
+    if (lead && lento && carga) {
+      lead.innerHTML = "El grupo <b>" + shortGrupo(lento.g) + "</b> concentra la mayor demora media (" +
+        fmt(lento.ads, 1) + " días hábiles). <b>" + shortGrupo(carga.g) + "</b> atiende el mayor volumen (" +
+        fmt(carga.ntr, 0) + " trámites). En el mapa hay <b>" + fmt(gps, 0) + "</b> trámites con GPS real de DECIDE; los otros <b>" +
+        fmt(list.length - gps, 0) + "</b> no tienen coordenadas: no se dibujan y se buscan por código.";
+    }
+    const ranks = porDemora.concat(grupos.filter(g => g.g === "Sin grupo")).map(g => ({
+      key: g.g,
+      label: shortGrupo(g.g),
+      v: g.ads || 0,
+      val: fmt(g.ads, 1),
+      unit: "días",
+      sub: fmt(g.ntr, 0) + " trámites · " + fmt(g.nt, 0) + " tareas",
+      warn: (g.ads || 0) >= 10,
+      mute: g.g === "Sin grupo"
+    }));
+    $("kpi-grupos").innerHTML = rankHtml(ranks, "grupo");
+    $("kpi-grupos").querySelectorAll(".rank").forEach(el => {
+      el.onclick = () => {
+        $("fGrupo").value = el.dataset.key === "Sin grupo" ? "Sin grupo" : el.dataset.key;
+        applyPointFilter();
+      };
+    });
+    const byM = {};
+    list.forEach(t => { byM[t.mun] = (byM[t.mun] || 0) + 1; });
+    const munItems = Object.keys(byM).sort((a, b) => byM[b] - byM[a]).map(m => ({
+      key: m, label: m, v: byM[m], val: fmt(byM[m], 0), unit: "",
+      sub: "trámites con los filtros actuales", warn: false, mute: false
+    }));
+    $("kpi-mun").innerHTML = rankHtml(munItems, "mun");
+    $("kpi-mun").querySelectorAll(".rank").forEach(el => {
+      el.onclick = () => { $("fMun").value = el.dataset.key; applyPointFilter(); };
+    });
+  }
+
+  function fillSelect(sel, values, extra) {
+    const cur = sel.value;
+    sel.innerHTML = extra;
+    values.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+    if ([].some.call(sel.options, o => o.value === cur)) sel.value = cur;
+  }
+
+  Promise.all([
+    fetch("data/tramites.json").then(r => r.json()),
+    fetch("data/tareas.json").then(r => r.json()),
+    fetch("data/capas/municipios_amva.geojson").then(r => r.json()),
+    fetch("data/capas/perimetro_urbano_amva.geojson").then(r => r.json()),
+    fetch("data/capas/red_hidrica.geojson").then(r => r.json())
+  ]).then(([tramites, tareas, muni, perim, red]) => {
+    TR = tramites; TA = tareas;
+    rows = TR.t.map(r => decodeRow(TR, r));
+    rows.forEach(t => byId.set(t.id, t));
+
+    muniL = L.geoJSON(muni, {
+      interactive: false,
+      style: { fillColor: "#ffffff", color: "#7d8c82", weight: 1.2, fillOpacity: 0.04 }
+    }).addTo(map);
+    perimL = L.geoJSON(perim, {
+      interactive: false,
+      style: { fillColor: "#4aa3ff", color: "#e2b007", weight: 2, fillOpacity: 0.04 }
+    }).addTo(map);
+    redL = L.geoJSON(red, {
+      interactive: false,
+      style: f => ({ color: f.properties.RIO === 1 ? "#1769b0" : "#5fa8e0", weight: f.properties.RIO === 1 ? 2.2 : 1, opacity: 0.8 })
+    }).addTo(map);
+
+    munLab = L.layerGroup();
+    muni.features.forEach(f => {
+      const n = cleanMun(f.properties.MpNombre || "");
+      const tmp = L.geoJSON(f);
+      const c = tmp.getBounds().getCenter();
+      tmp.remove();
+      L.marker(c, { icon: L.divIcon({ className: "", html: "<span class='munlab'>" + n + "</span>" }), interactive: false }).addTo(munLab);
+    });
+    munLab.addTo(map);
+
+    HOME = muniL.getBounds().pad(0.04);
+    map.fitBounds(HOME);
+    setTimeout(() => { map.invalidateSize(); map.fitBounds(HOME); }, 80);
+
+    pointsGroup = L.layerGroup().addTo(map);
+    const counts = {};
+    rows.forEach(t => {
+      const clas = t.clas || "Sin clasificación";
+      counts[clas] = (counts[clas] || 0) + 1;
+      styleFor(classColor, clas);
+      if (t.lat == null || t.lon == null) return;
+      const mk = L.circleMarker([t.lat, t.lon], {
+        pane: "puntos",
+        radius: 3.5,
+        fillColor: classColor[clas],
+        color: "#fff",
+        weight: 0.8,
+        fillOpacity: 0.9,
+        bubblingMouseEvents: false
+      });
+      t._marker = mk;
+      mk.bindTooltip(String(t.id), { direction: "right", offset: [10, 0], opacity: 0.95, className: "amva-tip" });
+      mk.bindPopup(popupHtml(t), {
+        maxWidth: 210,
+        className: "amva-pop",
+        offset: L.point(86, -6),
+        autoPanPadding: [24, 24],
+        closeButton: true
+      });
+      mk.on("mouseover", function () {
+        renderFicha(t);
+        showTab("ficha");
+      });
+      mk.on("click", function (ev) {
+        L.DomEvent.stop(ev);
+        openFicha(t);
+      });
+      mk.addTo(pointsGroup);
+    });
+
+    const clasList = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    fillSelect($("fClas"), clasList, "<option value=''>Todas las clasificaciones</option>");
+    fillSelect($("fMun"), [...new Set(rows.map(t => t.mun))].sort(), "<option value=''>Todos los municipios</option>");
+    fillSelect($("fGrupo"), [...new Set(rows.map(t => t.grupo))].sort(), "<option value=''>Todos los grupos</option>");
+
+    $("leg-clas").innerHTML = clasList.map(c =>
+      "<div class='sw on' data-clas='" + c.replace(/'/g, "") + "'><span class='dot' style='background:" + classColor[c] + "'></span><span class='txt'>" + c + "</span><span class='n'>" + counts[c] + "</span><span class='chk'></span></div>"
+    ).join("");
+    $("leg-clas").querySelectorAll(".sw").forEach(el => {
+      el.onclick = () => {
+        el.classList.toggle("on");
+        const c = el.querySelector(".txt").textContent;
+        if (el.classList.contains("on")) hiddenClas.delete(c); else hiddenClas.add(c);
+        applyPointFilter();
+      };
+    });
+
+    const overlays = { muni: muniL, perim: perimL, redrio: redL, munlab: munLab };
+    document.querySelectorAll("#panelR .sw[data-over]").forEach(el => {
+      el.onclick = () => {
+        el.classList.toggle("on");
+        const lyr = overlays[el.dataset.over];
+        if (!lyr) return;
+        if (el.classList.contains("on")) lyr.addTo(map); else map.removeLayer(lyr);
+      };
+    });
+
+    renderKpis();
+    showDock("tiempos");
+    setDockOpen(false);
+    let hoverId = null;
+    map.on("mousemove", function (e) {
+      if (map.dragging && map.dragging.moving()) return;
+      const t = nearestPx(e.latlng, 14);
+      if (!t) {
+        if (hoverId != null) {
+          const prev = byId.get(hoverId);
+          if (prev && prev._marker) prev._marker.closeTooltip();
+          hoverId = null;
+        }
+        return;
+      }
+      if (hoverId === t.id) return;
+      hoverId = t.id;
+      renderFicha(t);
+      showTab("ficha");
+      if (t._marker) t._marker.openTooltip();
+    });
+    map.on("click", function (e) {
+      const t = nearestPx(e.latlng, 24);
+      if (t) openFicha(t);
+    });
+    map.on("popupopen", function (e) {
+      const btn = e.popup.getElement() && e.popup.getElement().querySelector(".pop-go");
+      if (!btn) return;
+      L.DomEvent.disableClickPropagation(btn);
+      btn.onclick = function (ev) {
+        L.DomEvent.stop(ev);
+        const t = byId.get(+btn.getAttribute("data-hist"));
+        if (t) openFicha(t);
+      };
+    });
+    setTimeout(() => map.invalidateSize(), 80);
+  }).catch(err => {
+    $("results").innerHTML = "<div class='hint'>No se pudieron cargar las capas. Abra el tablero con un servidor HTTP (no file://).<br>" + err + "</div>";
+  });
+
+  ["fClas","fMun","fGrupo"].forEach(id => $(id).onchange = applyPointFilter);
+  $("q").oninput = () => {
+    renderSuggest();
+    renderResults();
+    updateClear();
+    if ($("q").value.trim()) showTab("res");
+  };
+  $("q").onkeydown = e => {
+    if (e.key === "Enter") {
+      $("suggest").style.display = "none";
+      const t = byId.get(+$("q").value.trim());
+      if (t) openFicha(t);
+    }
+  };
+  document.addEventListener("click", e => { if (!$("suggest").contains(e.target) && e.target !== $("q")) $("suggest").style.display = "none"; });
+  $("btn-qclear").onclick = $("btn-clear").onclick = () => {
+    $("q").value = ""; $("fClas").value = ""; $("fMun").value = ""; $("fGrupo").value = "";
+    hiddenClas.clear();
+    $("leg-clas").querySelectorAll(".sw").forEach(el => el.classList.add("on"));
+    LOCKED = null;
+    if (SEL_MARK) { map.removeLayer(SEL_MARK); SEL_MARK = null; }
+    map.closePopup();
+    $("ficha").innerHTML = "<div class='hint'>Seleccione un trámite para ver la ficha. La historia de tareas aparece abajo, en el plano.</div>";
+    $("dock-hist").innerHTML = "<div class='hint'>Elija un trámite en el mapa o escriba su código. Aquí se listan las tareas del 1 a la última, con horas y días hábiles.</div>";
+    showDock("tiempos");
+    showTab("kpi");
+    applyPointFilter();
+    setDockOpen(false);
+  };
+  $("btn-home").onclick = () => { goHome(); };
+  $("dock-toggle").onclick = () => setDockOpen(!document.body.classList.contains("dock-open"));
+  window.addEventListener("resize", () => map.invalidateSize());
+})();
+</script>
+</body>
+</html>

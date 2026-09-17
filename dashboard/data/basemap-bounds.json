@@ -1,0 +1,19 @@
+{
+  "crs": "EPSG:4326",
+  "south": 6.068293,
+  "west": -75.665796,
+  "north": 6.45071,
+  "east": -75.319622,
+  "imageOverlay": [
+    [
+      6.068293,
+      -75.665796
+    ],
+    [
+      6.45071,
+      -75.319622
+    ]
+  ],
+  "source": "Esri World Imagery tiles stitched at build time (not requested by the HTML)",
+  "zoom": 14
+}

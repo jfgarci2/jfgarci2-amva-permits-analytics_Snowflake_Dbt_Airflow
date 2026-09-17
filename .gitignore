@@ -1,0 +1,26 @@
+.env
+airflow/.env
+profiles.yml
+!profiles.yml.example
+.cursor/
+.user.yml
+Geodatabase/
+data/raw/
+data/anon/
+data/processed/*.duckdb
+data/processed/*.wal
+target/
+dbt_packages/
+logs/
+airflow/logs/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+Geoportal_Permisos_Licencias_AMVA.html
+Geoportal_Permisos_Licencias_AMVA*.html
+
+
+# Extractos DECIDE / calendario AMVA: PII y archivos grandes. El README de la carpeta S? se versiona.
+Bases de datos AMVA/raw/*.xlsx
+Bases de datos AMVA/raw/*.xls
+Bases de datos AMVA/raw/*.csv
