@@ -62,12 +62,10 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Instalar dbt
-        run: pip install "dbt-snowflake>=1.9.0,<2.0.0" "dbt-duckdb>=1.9.0,<2.0.0"
+      - name: Instalar dbt-duckdb
+        run: pip install "dbt-core>=1.9.0,<2.0.0" "dbt-duckdb>=1.9.0,<2.0.0"
       - name: Parse del proyecto
-        env:
-          SNOWFLAKE_PASSWORD: ci-no-conecta
-        run: dbt parse --profiles-dir ../ci --target ci --quiet
+        run: dbt parse --profiles-dir ../ci --target ci
 
   python_scripts:
     name: scripts Python + DAG
